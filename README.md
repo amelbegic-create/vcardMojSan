@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MojSan VCard Platform
 
-## Getting Started
+A full-stack digital business card SaaS platform built with Next.js 14, Prisma, Neon PostgreSQL, and Vercel Blob.
 
-First, run the development server:
+## Tech Stack
+
+- **Framework**: Next.js 14 (App Router, TypeScript)
+- **Styling**: Tailwind CSS v4
+- **Database**: Neon (PostgreSQL) via Prisma ORM
+- **Auth**: NextAuth.js v5 (Credentials provider)
+- **Storage**: Vercel Blob
+- **QR Codes**: qrcode npm package
+- **Hosting**: Vercel
+
+---
+
+## Quick Start
+
+### 1. Install Dependencies
+
+```bash
+cd vcard-platform
+npm install
+```
+
+### 2. Set Up Environment Variables
+
+Copy `.env.example` to `.env.local` and fill in your values:
+
+```bash
+cp .env.example .env.local
+```
+
+Required variables:
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | Neon connection string (pooled) |
+| `DIRECT_URL` | Neon direct connection string |
+| `NEXTAUTH_SECRET` | Random secret (`openssl rand -base64 32`) |
+| `NEXTAUTH_URL` | Your app URL (`http://localhost:3000` for dev) |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob token from dashboard |
+
+### 3. Set Up Neon Database
+
+1. Go to neon.tech and create a free project
+2. Copy both Connection String (pooled) to DATABASE_URL
+3. Copy Direct Connection String to DIRECT_URL
+
+### 4. Run Database Migration
+
+```bash
+npx prisma migrate dev --name init
+```
+
+### 5. Seed Database
+
+```bash
+npm run seed
+```
+
+This creates:
+- Admin user: admin@mojsan.ba / Admin@123 (change immediately!)
+- 5 color templates
+- 1 sample card at /card/demo-card
+
+### 6. Start Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deploy to Vercel
 
-## Learn More
+1. Push code to GitHub
+2. Import repo at vercel.com/new
+3. Add all environment variables in Vercel dashboard
+4. Set NEXTAUTH_URL to your production URL
+5. Deploy, then run: npm run seed
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Useful Commands
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run dev          # Start dev server
+npm run build        # Production build
+npm run seed         # Seed database
+npm run db:push      # Push schema (no migration)
+npm run db:migrate   # Create migration
+npm run db:studio    # Open Prisma Studio
+```
