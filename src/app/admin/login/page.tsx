@@ -20,10 +20,22 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(""); setLoading(true);
-    const res = await signIn("credentials", { email, password, redirect: false });
-    setLoading(false);
-    if (res?.error) setError("Pogrešan email ili lozinka.");
-    else { router.push("/admin"); router.refresh(); }
+    try {
+      const res = await signIn("credentials", { email, password, redirect: false });
+      if (res?.error) {
+        setError("Pogrešan email ili lozinka.");
+      } else if (res?.ok) {
+        router.push("/admin");
+        router.refresh();
+      } else {
+        setError("Greška pri prijavi. Pokušajte ponovo.");
+      }
+    } catch (err) {
+      console.error("signIn error:", err);
+      setError("Greška pri konekciji. Pokušajte ponovo.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
