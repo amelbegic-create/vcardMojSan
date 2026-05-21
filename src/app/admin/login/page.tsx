@@ -1,37 +1,74 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
 
 const PURPLE = "#900a7d";
 const BLUE   = "#1e9bd7";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
 
+  // Read error from URL (NextAuth redirects here with ?error=... on failure)
+  useEffect(() => {
+    const urlError = searchParams.get("error");
+    if (urlError) {
+      if (urlError === "CredentialsSignin") {
+        setError("Pogrešan email ili lozinka.");
+      } else {
+        setError(`Greška pri prijavi: ${urlError}`);
+      }
+    }
+  }, [searchParams]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(""); setLoading(true);
+    setError("");
+    setLoading(true);
+
     try {
-      const res = await signIn("credentials", { email, password, redirect: false });
-      if (res?.error) {
-        setError("Pogrešan email ili lozinka.");
-      } else if (res?.ok) {
-        router.push("/admin");
-        router.refresh();
+      // POST directly to NextAuth credentials endpoint
+      const csrfRes = await fetch("/api/auth/csrf");
+      const { csrfToken } = await csrfRes.json();
+
+      const res = await fetch("/api/auth/callback/credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          csrfToken,
+          email,
+          password,
+          redirect: "false",
+          callbackUrl: "/admin",
+          json: "true",
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.url && !data.url.includes("error")) {
+          router.push("/admin");
+          router.refresh();
+        } else if (data?.error || (data?.url && data.url.includes("error"))) {
+          setError("Pogrešan email ili lozinka.");
+        } else {
+          // Try to navigate anyway — may have set cookie
+          router.push("/admin");
+          router.refresh();
+        }
       } else {
-        setError("Greška pri prijavi. Pokušajte ponovo.");
+        setError("Pogrešan email ili lozinka.");
       }
     } catch (err) {
-      console.error("signIn error:", err);
+      console.error("Login error:", err);
       setError("Greška pri konekciji. Pokušajte ponovo.");
     } finally {
       setLoading(false);
@@ -41,12 +78,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex" style={{ background: "#f0f2f5" }}>
 
-      {/* ── Lijevi panel — SAMO LOGO, čisto ── */}
+      {/* ── Lijevi panel ── */}
       <div
         className="hidden lg:flex flex-col items-center justify-center w-[420px] flex-shrink-0"
         style={{ background: `linear-gradient(160deg, #1a0a20 0%, ${PURPLE} 100%)` }}
       >
-        {/* Logo */}
         <div
           className="rounded-3xl overflow-hidden flex items-center justify-center"
           style={{
@@ -65,24 +101,19 @@ export default function LoginPage() {
             style={{ padding: "8px" }}
           />
         </div>
-
-        {/* Samo brand ime ispod logoa */}
         <div className="text-center mt-6">
           <p className="text-white font-black text-2xl tracking-tight">MojSan®</p>
           <p className="font-bold text-base mt-1" style={{ color: BLUE }}>VCard Platform</p>
         </div>
       </div>
 
-      {/* ── Desni panel — forma ── */}
+      {/* ── Desni panel ── */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-sm">
 
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <div
-              className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0"
-              style={{ background: PURPLE }}
-            >
+            <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0" style={{ background: PURPLE }}>
               <Image src="/mojsan-logo.png" alt="MojSan" width={48} height={48} className="object-contain p-1" />
             </div>
             <div>
@@ -154,5 +185,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
