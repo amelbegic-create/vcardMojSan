@@ -4,6 +4,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // trustHost reads the base URL from request headers — avoids NEXTAUTH_URL env var issues
+  trustHost: true,
   providers: [
     Credentials({
       name: "credentials",
