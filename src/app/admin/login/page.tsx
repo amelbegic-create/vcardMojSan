@@ -1,75 +1,32 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
+import { loginAction } from "./actions";
 
 const PURPLE = "#900a7d";
 const BLUE   = "#1e9bd7";
 
-function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+export default function LoginPage() {
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
 
-  // Read error from URL (NextAuth redirects here with ?error=... on failure)
-  useEffect(() => {
-    const urlError = searchParams.get("error");
-    if (urlError) {
-      if (urlError === "CredentialsSignin") {
-        setError("Pogrešan email ili lozinka.");
-      } else {
-        setError(`Greška pri prijavi: ${urlError}`);
-      }
-    }
-  }, [searchParams]);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
-      // POST directly to NextAuth credentials endpoint
-      const csrfRes = await fetch("/api/auth/csrf");
-      const { csrfToken } = await csrfRes.json();
-
-      const res = await fetch("/api/auth/callback/credentials", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          csrfToken,
-          email,
-          password,
-          redirect: "false",
-          callbackUrl: "/admin",
-          json: "true",
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json().catch(() => null);
-        if (data?.url && !data.url.includes("error")) {
-          router.push("/admin");
-          router.refresh();
-        } else if (data?.error || (data?.url && data.url.includes("error"))) {
-          setError("Pogrešan email ili lozinka.");
-        } else {
-          // Try to navigate anyway — may have set cookie
-          router.push("/admin");
-          router.refresh();
-        }
-      } else {
-        setError("Pogrešan email ili lozinka.");
+      const result = await loginAction(email, password);
+      if (result?.error) {
+        setError(result.error);
       }
-    } catch (err) {
-      console.error("Login error:", err);
-      setError("Greška pri konekciji. Pokušajte ponovo.");
+      // On success, loginAction throws a redirect — page navigates automatically
+    } catch {
+      // Redirect errors from Next.js are re-thrown and handled by the framework
     } finally {
       setLoading(false);
     }
@@ -92,14 +49,8 @@ function LoginForm() {
             border: "2px solid rgba(255,255,255,0.25)",
           }}
         >
-          <Image
-            src="/mojsan-logo.png"
-            alt="MojSan"
-            width={144}
-            height={144}
-            className="object-contain"
-            style={{ padding: "8px" }}
-          />
+          <Image src="/mojsan-logo.png" alt="MojSan" width={144} height={144}
+            className="object-contain" style={{ padding: "8px" }} />
         </div>
         <div className="text-center mt-6">
           <p className="text-white font-black text-2xl tracking-tight">MojSan®</p>
@@ -185,13 +136,5 @@ function LoginForm() {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
   );
 }
