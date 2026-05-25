@@ -1,32 +1,54 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { encode, decode } from "next-auth/jwt";
 
-// Temporary debug endpoint — remove after login is confirmed working
-export async function GET() {
-  try {
-    const user = await prisma.adminUser.findUnique({
-      where: { email: "admin@mojsan.ba" },
-    });
+export async function GET(req: NextRequest) {
+  const secret = process.env.NEXTAUTH_SECRET ?? "";
+  const proto = req.headers.get("x-forwarded-proto") ?? "http";
+  const isHttps = proto === "https";
+  const secureCookieName = isHttps ? "__Secure-authjs.session-token" : "authjs.session-token";
+  const nodeEnvCookieName = process.env.NODE_ENV === "production" ? "__Secure-authjs.session-token" : "authjs.session-token";
 
-    if (!user) {
-      return NextResponse.json({ ok: false, error: "User not found in DB" });
+  // Read existing cookie if any
+  const cookieValue = req.cookies.get(secureCookieName)?.value ?? req.cookies.get("authjs.session-token")?.value;
+  let decoded = null;
+  let decodeError = null;
+  if (cookieValue) {
+    try {
+      decoded = await decode({ token: cookieValue, secret, salt: secureCookieName });
+    } catch (e) {
+      decodeError = String(e);
     }
-
-    const passwordMatch = await bcrypt.compare("Admin@123", user.password);
-
-    return NextResponse.json({
-      ok: true,
-      userFound: true,
-      passwordMatch,
-      dbUrl: process.env.DATABASE_URL ? `${process.env.DATABASE_URL.substring(0, 30)}...` : "NOT SET",
-      secret: process.env.NEXTAUTH_SECRET ? `set (${process.env.NEXTAUTH_SECRET.length} chars)` : "NOT SET",
-    });
-  } catch (err) {
-    return NextResponse.json({
-      ok: false,
-      error: String(err),
-      dbUrl: process.env.DATABASE_URL ? `${process.env.DATABASE_URL.substring(0, 30)}...` : "NOT SET",
-    });
   }
+
+  // Test encode/decode roundtrip
+  let roundtripOk = false;
+  try {
+    const t = await encode({ token: { sub: "test", email: "test@test.com" }, secret, salt: secureCookieName });
+    const d = await decode({ token: t, secret, salt: secureCookieName });
+    roundtripOk = !!d?.sub;
+  } catch { roundtripOk = false; }
+
+  // Test DB
+  let userFound = false, passwordMatch = false;
+  try {
+    const user = await prisma.adminUser.findUnique({ where: { email: "admin@mojsan.ba" } });
+    userFound = !!user;
+    if (user) passwordMatch = await bcrypt.compare("Admin@123", user.password);
+  } catch { /* ignore */ }
+
+  return NextResponse.json({
+    proto, isHttps,
+    secureCookieName,
+    nodeEnvCookieName,
+    cookieNameMatch: secureCookieName === nodeEnvCookieName,
+    secretLength: secret.length,
+    cookiePresent: !!cookieValue,
+    cookieDecoded: decoded,
+    decodeError,
+    roundtripOk,
+    userFound, passwordMatch,
+    allCookies: [...req.cookies].map(([k]) => k),
+  });
 }
