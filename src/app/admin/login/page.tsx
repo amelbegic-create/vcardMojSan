@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
-import { loginAction } from "./actions";
 
 const PURPLE = "#900a7d";
 const BLUE   = "#1e9bd7";
@@ -19,14 +18,25 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
     try {
-      const result = await loginAction(email, password);
-      if (result?.error) {
-        setError(result.error);
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.ok) {
+        // Full page reload so the new cookie is picked up by the server layout
+        window.location.href = "/admin";
+      } else {
+        setError(data.error ?? "Pogrešan email ili lozinka.");
       }
-      // On success, loginAction throws a redirect — page navigates automatically
     } catch {
-      // Redirect errors from Next.js are re-thrown and handled by the framework
+      setError("Greška pri konekciji. Pokušajte ponovo.");
     } finally {
       setLoading(false);
     }
@@ -43,8 +53,7 @@ export default function LoginPage() {
         <div
           className="rounded-3xl overflow-hidden flex items-center justify-center"
           style={{
-            width: "160px",
-            height: "160px",
+            width: "160px", height: "160px",
             background: "rgba(255,255,255,0.12)",
             border: "2px solid rgba(255,255,255,0.25)",
           }}
