@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getAdminSession } from "@/lib/session";
 import AdminHeader from "@/components/admin/AdminHeader";
 import { Toaster } from "react-hot-toast";
 
 export default async function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth();
+  const session = await getAdminSession();
   if (!session) redirect("/admin/login");
 
   return (
