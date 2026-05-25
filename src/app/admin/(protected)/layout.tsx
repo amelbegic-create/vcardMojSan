@@ -1,16 +1,16 @@
-import { redirect } from "next/navigation";
-import { getAdminSession } from "@/lib/session";
+import { headers } from "next/headers";
 import AdminHeader from "@/components/admin/AdminHeader";
 import { Toaster } from "react-hot-toast";
 
 export default async function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await getAdminSession();
-  if (!session) redirect("/admin/login");
+  // Auth is enforced by middleware.ts — user info is forwarded as request headers
+  const h = await headers();
+  const email = h.get("x-user-email") ?? undefined;
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "#f0f2f5" }}>
       {/* Gradient header sa logoom i navigacijom */}
-      <AdminHeader email={session.user?.email} />
+      <AdminHeader email={email} />
 
       {/* Sadržaj stranice */}
       <main className="flex-1">
