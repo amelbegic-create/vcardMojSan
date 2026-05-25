@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { encode, decode } from "next-auth/jwt";
+import { auth } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   const secret = process.env.NEXTAUTH_SECRET ?? "";
@@ -38,6 +39,15 @@ export async function GET(req: NextRequest) {
     if (user) passwordMatch = await bcrypt.compare("Admin@123", user.password);
   } catch { /* ignore */ }
 
+  // Call auth() directly to see if the session is accepted
+  let authSession = null;
+  let authError = null;
+  try {
+    authSession = await auth();
+  } catch (e) {
+    authError = String(e);
+  }
+
   return NextResponse.json({
     proto, isHttps,
     secureCookieName,
@@ -50,5 +60,7 @@ export async function GET(req: NextRequest) {
     roundtripOk,
     userFound, passwordMatch,
     allCookies: [...req.cookies].map(([k]) => k),
+    authSession,
+    authError,
   });
 }

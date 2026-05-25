@@ -3,13 +3,16 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { encode } from "next-auth/jwt";
 
-const COOKIE_NAME = process.env.NODE_ENV === "production"
-  ? "__Secure-authjs.session-token"
-  : "authjs.session-token";
-
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
+
+    // Match exactly what @auth/core does: derive secure-cookie flag from protocol
+    const proto = req.headers.get("x-forwarded-proto") ?? "http";
+    const isHttps = proto === "https";
+    const COOKIE_NAME = isHttps
+      ? "__Secure-authjs.session-token"
+      : "authjs.session-token";
 
     if (!email || !password) {
       return NextResponse.json({ error: "Email i lozinka su obavezni" }, { status: 400 });
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json({ ok: true });
     res.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isHttps,
       sameSite: "lax",
       path: "/",
       maxAge: 30 * 24 * 60 * 60,
