@@ -20,7 +20,7 @@ export async function POST(
     newSlug = `${original.slug}-kopija-${counter++}`;
   }
 
-  const copy = await prisma.card.create({
+  const created = await prisma.card.create({
     data: {
       slug:       newSlug,
       name:       `${original.name} (kopija)`,
@@ -46,6 +46,11 @@ export async function POST(
       whatsapp:   original.whatsapp,
       customLinks: original.customLinks ?? undefined,
     },
+  });
+  // Fetch with relations separately — PrismaNeonHttp does not support transactions
+  // which Prisma uses internally when combining write + include.
+  const copy = await prisma.card.findUnique({
+    where: { id: created.id },
     include: { template: true },
   });
 

@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Slug already exists" }, { status: 409 });
   }
 
-  const card = await prisma.card.create({
+  const created = await prisma.card.create({
     data: {
       slug: body.slug,
       name: body.name,
@@ -58,6 +58,11 @@ export async function POST(req: NextRequest) {
       templateId: body.templateId || null,
       active: body.active ?? true,
     },
+  });
+  // Fetch with relations separately — PrismaNeonHttp (HTTP mode) does not support
+  // transactions, which Prisma uses internally when combining write + include.
+  const card = await prisma.card.findUnique({
+    where: { id: created.id },
     include: { template: true },
   });
 

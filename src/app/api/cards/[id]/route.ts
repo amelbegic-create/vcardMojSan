@@ -67,9 +67,11 @@ export async function PUT(
   if (body.customLinks !== undefined) data.customLinks = body.customLinks ?? null;
   if (body.templateId  !== undefined) data.templateId  = body.templateId  || null;
 
-  const card = await prisma.card.update({
+  await prisma.card.update({ where: { id }, data });
+  // Fetch with relations separately — PrismaNeonHttp does not support transactions
+  // which Prisma uses internally when combining write + include.
+  const card = await prisma.card.findUnique({
     where: { id },
-    data,
     include: { template: true },
   });
 
