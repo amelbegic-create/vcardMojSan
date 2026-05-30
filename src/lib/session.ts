@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { decode } from "next-auth/jwt";
+import { type NextRequest } from "next/server";
 
 export interface AdminSession {
   user: {
@@ -59,6 +60,42 @@ export async function getAdminSession(): Promise<AdminSession | null> {
     };
   } catch (err) {
     console.error("[getAdminSession] error:", err);
+    return null;
+  }
+}
+
+/**
+ * Validates the session from a NextRequest's cookies.
+ * Use this in API Route Handlers instead of auth() from next-auth.
+ * Same decode() logic confirmed working in auth-test.
+ */
+export async function requireAuth(req: NextRequest): Promise<AdminSession | null> {
+  try {
+    const proto = req.headers.get("x-forwarded-proto") ?? "http";
+    const isHttps = proto === "https";
+    const cookieName = isHttps
+      ? "__Secure-authjs.session-token"
+      : "authjs.session-token";
+
+    const tokenValue =
+      req.cookies.get(cookieName)?.value ??
+      req.cookies.get("authjs.session-token")?.value;
+
+    if (!tokenValue) return null;
+
+    const secret = process.env.NEXTAUTH_SECRET ?? "";
+    const decoded = await decode({ token: tokenValue, secret, salt: cookieName });
+
+    if (!decoded?.sub) return null;
+    if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) return null;
+
+    return {
+      user: {
+        id: decoded.sub,
+        email: (decoded.email as string) ?? "",
+      },
+    };
+  } catch {
     return null;
   }
 }
